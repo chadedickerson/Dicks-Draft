@@ -20,7 +20,10 @@ const crypto = require('crypto');
 const path = require('path');
 
 const PORT = parseInt(process.argv[2] || process.env.PORT || '8080', 10);
-const KEY = crypto.randomBytes(8).toString('hex');
+// Set COMMISH_KEY in your host's environment variables (e.g. Railway) so the
+// commissioner URL survives restarts/redeploys; otherwise a fresh key is
+// generated each boot and printed below.
+const KEY = process.env.COMMISH_KEY || crypto.randomBytes(8).toString('hex');
 const INDEX = path.join(__dirname, 'index.html');
 
 let sharedState = null;              // last state pushed by the commissioner
@@ -42,6 +45,11 @@ const server = http.createServer((req, res) => {
     catch (e) { res.writeHead(500); return res.end('index.html not found next to server.js'); }
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     return res.end(html);
+  }
+
+  if (route === '/healthz') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, viewers: sseClients.size, hasState: !!sharedState }));
   }
 
   if (route === '/state' && req.method === 'GET') {
@@ -82,18 +90,25 @@ const server = http.createServer((req, res) => {
 setInterval(() => { for (const res of sseClients) { try { res.write(': ping\n\n'); } catch (e) {} } }, 25000);
 
 server.listen(PORT, '0.0.0.0', () => {
-  const ips = [];
-  for (const list of Object.values(os.networkInterfaces()))
-    for (const i of list || []) if (i.family === 'IPv4' && !i.internal) ips.push(i.address);
-  const host = ips[0] || 'localhost';
+  const cloud = !!(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID || process.env.PORT && !process.stdout.isTTY);
   console.log('');
-  console.log('🏈 Draft Lab \'26 live server running');
+  console.log('🏈 Draft Lab \'26 live server running on port ' + PORT);
   console.log('──────────────────────────────────────────────────');
-  console.log(`  Viewers (share this):     http://${host}:${PORT}/`);
-  for (const ip of ips.slice(1)) console.log(`                    or:     http://${ip}:${PORT}/`);
-  console.log(`  Commissioner (private):   http://${host}:${PORT}/?key=${KEY}`);
+  if (cloud) {
+    console.log('  Cloud host detected.');
+    console.log('  Viewers (share this):     https://<your-app-domain>/');
+    console.log(`  Commissioner (private):   https://<your-app-domain>/?key=${KEY}`);
+    if (!process.env.COMMISH_KEY) console.log('  ⚠ No COMMISH_KEY env var set — this key changes on every restart!');
+  } else {
+    const ips = [];
+    for (const list of Object.values(os.networkInterfaces()))
+      for (const i of list || []) if (i.family === 'IPv4' && !i.internal) ips.push(i.address);
+    const host = ips[0] || 'localhost';
+    console.log(`  Viewers (share this):     http://${host}:${PORT}/`);
+    for (const ip of ips.slice(1)) console.log(`                    or:     http://${ip}:${PORT}/`);
+    console.log(`  Commissioner (private):   http://${host}:${PORT}/?key=${KEY}`);
+  }
   console.log('──────────────────────────────────────────────────');
   console.log('  Viewers are read-only; only the commissioner URL can draft.');
-  console.log('  Everyone must be on a network that can reach this machine.');
   console.log('');
 });

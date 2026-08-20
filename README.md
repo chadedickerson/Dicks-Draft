@@ -1,15 +1,17 @@
-# Dicks Draft — Fantasy Football Draft Board & Simulator
+# Dick's Draft '26 — Fantasy Football Draft Board & Simulator
+
+<p align="left">
+  <img src="./dicks-picks-image.jpeg" alt="Dicks-Draft Logo" width="300" />
+</p>
 
 A single-file, zero-dependency browser app: open `index.html` in any browser. No install, no server, works offline.
-
-Does have the ability to run as server and client architecture.
 
 ## Hosting a live draft (commissioner + viewers)
 
 To let your league watch the draft live from their own devices:
 
 ```bash
-node server.js          # or: node server.js 9000 for a custom port (default port: 8080)
+node server.js          # or: node server.js 9000 for a custom port
 ```
 
 It prints two URLs:
@@ -18,6 +20,17 @@ It prints two URLs:
 - **Commissioner URL** (with `?key=...`) — keep this one private; it's yours. Only requests carrying that key can change the shared state. If you reload your page mid-draft, it re-adopts the draft from the server.
 
 Requirements: Node.js installed (`node -v` to check; nodejs.org if not), and viewers must be able to reach your machine — same Wi-Fi/LAN works out of the box; hosting for remote friends needs a port-forward on your router (or a tunnel like Tailscale/ngrok). Opening `index.html` directly from disk still works exactly as before — the live features only wake up when served by `server.js`.
+
+## Deploying to Railway (public hosting)
+
+The repo is deploy-ready: `package.json` declares `npm start` → `node server.js`, the server honors Railway's `PORT`, has zero runtime dependencies, and exposes `/healthz`.
+
+1. Push this folder to a GitHub repo.
+2. In Railway: **New Project → Deploy from GitHub repo**, pick the repo. It auto-detects Node and runs `npm start`.
+3. In the service's **Variables**, add `COMMISH_KEY` = a long random string you make up. This is critical — without it a new key is generated on every restart/redeploy and your commissioner URL breaks mid-draft.
+4. In **Settings → Networking**, click **Generate Domain**. That domain is the viewer URL to share; your private commissioner URL is `https://<domain>/?key=<your COMMISH_KEY>`.
+
+Notes: draft state lives in memory, so a redeploy or crash between picks clears the server copy — your commissioner browser tab still holds the draft and re-pushes it automatically on its next change (or reload the commissioner URL to re-adopt whichever side has state). Anyone with the public URL can watch; only the key can change anything. SSE live updates work fine over Railway's HTTPS proxy.
 
 ## What it does
 

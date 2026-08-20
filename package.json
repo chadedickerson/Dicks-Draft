@@ -1,0 +1,17 @@
+{
+  "name": "draft-lab-26",
+  "version": "4.10.0",
+  "description": "Fantasy football draft board + live snake draft simulator (commissioner + read-only viewers)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "node build_dataset.js && node assemble.js",
+    "test": "node test_core.js && node test_assistant.js && node e2e.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}
